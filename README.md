@@ -1,7 +1,5 @@
 # Docker setup for the Product Microservices project
 
-This is a Docker configuration overlay for the existing project. Copy the files in each folder into the matching `product-service/` and `graphql-gateway/` folders. It does not replace your application source code, Apollo schema, resolvers, Flask routes, or tests.
-
 ## Architecture
 
 - `product-service/Dockerfile`: Flask REST service, served with Gunicorn.
