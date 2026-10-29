@@ -1,0 +1,84 @@
+{
+  "info": {
+    "name": "Product Microservices - GraphQL Gateway + Flask REST",
+    "description": "Test the TypeScript GraphQL gateway on port 4000 and the Flask product microservice on port 5000. Start both services first. The Create Product request stores productId for later GraphQL requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "graphqlBaseUrl", "value": "http://127.0.0.1:4000" },
+    { "key": "productServiceUrl", "value": "http://127.0.0.1:5000" },
+    { "key": "productId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "GraphQL Gateway",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query ListProducts { products { id name description price stock } }\"\n}" },
+            "url": "{{graphqlBaseUrl}}/graphql"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP request succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.test('GraphQL response contains products or errors', () => pm.expect(body.data?.products !== undefined || body.errors?.length).to.be.true);", "pm.test('No GraphQL execution errors', () => pm.expect(body.errors).to.be.undefined);"] } }]
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"mutation CreateProduct($input: ProductInput!) { createProduct(input: $input) { id name description price stock } }\",\n  \"variables\": {\n    \"input\": {\n      \"name\": \"Postman Test Mouse\",\n      \"description\": \"Created through GraphQL gateway\",\n      \"price\": 25.5,\n      \"stock\": 3\n    }\n  }\n}" },
+            "url": "{{graphqlBaseUrl}}/graphql"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP request succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.test('Create mutation has no GraphQL errors', () => pm.expect(body.errors).to.be.undefined);", "pm.test('Created product has an ID', () => pm.expect(body.data.createProduct.id).to.exist);", "pm.collectionVariables.set('productId', body.data.createProduct.id);"] } }]
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query GetProduct($id: ID!) { product(id: $id) { id name description price stock } }\",\n  \"variables\": { \"id\": \"{{productId}}\" }\n}" },
+            "url": "{{graphqlBaseUrl}}/graphql"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP request succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.test('Product was found', () => pm.expect(body.data.product).to.not.be.null);", "pm.test('Product ID matches collection variable', () => pm.expect(body.data.product.id).to.eql(pm.collectionVariables.get('productId')));"] } }]
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"mutation UpdateProduct($id: ID!, $input: ProductUpdateInput!) { updateProduct(id: $id, input: $input) { id name stock } }\",\n  \"variables\": {\n    \"id\": \"{{productId}}\",\n    \"input\": { \"name\": \"Postman Test Mouse Updated\", \"stock\": 8 }\n  }\n}" },
+            "url": "{{graphqlBaseUrl}}/graphql"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP request succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.test('Update mutation has no GraphQL errors', () => pm.expect(body.errors).to.be.undefined);", "pm.test('Name was updated', () => pm.expect(body.data.updateProduct.name).to.eql('Postman Test Mouse Updated'));"] } }]
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"mutation DeleteProduct($id: ID!) { deleteProduct(id: $id) }\",\n  \"variables\": { \"id\": \"{{productId}}\" }\n}" },
+            "url": "{{graphqlBaseUrl}}/graphql"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP request succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.test('Delete mutation has no GraphQL errors', () => pm.expect(body.errors).to.be.undefined);", "pm.test('Delete returned true', () => pm.expect(body.data.deleteProduct).to.eql(true));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Flask Product Microservice (REST)",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": { "method": "GET", "header": [], "url": "{{productServiceUrl}}/health" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Backend health check is successful', () => pm.response.to.have.status(200));", "pm.test('Database is connected', () => pm.expect(pm.response.json().database).to.eql('connected'));"] } }]
+        },
+        {
+          "name": "List Products (REST)",
+          "request": { "method": "GET", "header": [], "url": "{{productServiceUrl}}/products" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('REST list returns 200', () => pm.response.to.have.status(200));", "pm.test('Response is a list', () => pm.expect(pm.response.json()).to.be.an('array'));"] } }]
+        }
+      ]
+    }
+  ]
+}

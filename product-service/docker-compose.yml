@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: product-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.docker}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-flask_crud_db}
+      MYSQL_USER: ${MYSQL_USER:-flask_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.docker}
+    ports:
+      # Host port 3307 avoids colliding with a locally installed MySQL on 3306.
+      - "3307:3306"
+    volumes:
+      - product_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - product-network
+
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: product-service
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      # The hostname is the Compose service name, not localhost.
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-flask_user}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-flask_crud_db}
+      PORT: "5000"
+    ports:
+      - "5000:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - product-network
+
+volumes:
+  product_mysql_data:
+
+networks:
+  product-network:
+    name: product-network

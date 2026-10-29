@@ -1,0 +1,22 @@
+services:
+  graphql-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphql-gateway
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      PORT: "4000"
+      PRODUCT_SERVICE_URL: http://product-service:5000
+    ports:
+      - "4000:4000"
+    networks:
+      - product-network
+
+# Created by product-service/docker-compose.yml. Start that Compose project first.
+networks:
+  product-network:
+    name: product-network
+    external: true
